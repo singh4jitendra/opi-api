@@ -1,0 +1,35 @@
+name: Storage response redaction validation
+
+on:
+  push:
+    branches: [ ci/validate-storage-redaction ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: opiproject/opi-spdk-bridge
+            ref: a56a924c5524f08f2f845bc7dc398fcd291c9fca
+            label: baseline
+          - repository: singh4jitendra/opi-spdk-bridge
+            ref: fix/redact-storage-secrets
+            label: candidate
+    name: Linux ${{ matrix.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: go.sum
+      - run: go test ./pkg/middleend ./pkg/frontend ./pkg/backend ./pkg/utils
