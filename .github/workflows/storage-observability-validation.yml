@@ -1,0 +1,73 @@
+name: Storage observability validation
+
+on:
+  push:
+    branches: [ ci/validate-storage-observability ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API contract and reproducible bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: singh4jitendra/opi-api
+          ref: feat/storage-statistics-context
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tests/go.mod
+          cache-dependency-path: tests/go.sum
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.50.0
+      - run: buf lint && go -C tests test ./...
+      - run: |
+          buf generate --path storage --output v1
+          bash scripts/generate-storage-legacy.sh
+          git diff --exit-code -- v1/gen storage/v1alpha1/gen
+
+  bridge:
+    name: Linux bridge ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: opiproject/opi-spdk-bridge
+            ref: a56a924c5524f08f2f845bc7dc398fcd291c9fca
+            label: baseline
+          - repository: singh4jitendra/opi-spdk-bridge
+            ref: feat/storage-statistics-context
+            label: candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: go.sum
+      - run: go test ./pkg/backend ./pkg/middleend ./pkg/frontend ./pkg/utils
+
+  conversion:
+    name: OTLP conversion and reset handling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: singh4jitendra/otel
+          ref: feat/opi-storage-otlp-conversion
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: config/opi-storage/go.mod
+          cache-dependency-path: config/opi-storage/go.sum
+      - run: go test -race ./... && go vet ./...
+        working-directory: config/opi-storage
