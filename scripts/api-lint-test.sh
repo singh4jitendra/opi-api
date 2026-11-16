@@ -3,6 +3,10 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+if grep -q $'\r' "$root/scripts/api-lint.sh" "$root/scripts/api-lint-test.sh"; then
+    echo "API lint shell scripts must use LF line endings." >&2
+    exit 1
+fi
 fixture="$(mktemp -d)"
 trap 'rm -rf -- "$fixture"' EXIT
 mkdir -p "$fixture/scripts" "$fixture/bin"
