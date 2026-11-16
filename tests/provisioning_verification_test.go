@@ -2,6 +2,7 @@
 package contracts
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/pem"
@@ -138,6 +139,13 @@ func TestProvisioningScriptSyntax(t *testing.T) {
 	} {
 		t.Run(file, func(t *testing.T) {
 			path := filepath.Join(provisioningRoot(t), file)
+			script, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bytes.ContainsRune(script, '\r') {
+				t.Fatal("provisioning shell scripts must use LF line endings")
+			}
 			if output, err := exec.Command("bash", "-n", path).CombinedOutput(); err != nil {
 				t.Fatalf("shell syntax: %v\n%s", err, output)
 			}
