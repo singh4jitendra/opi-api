@@ -3,6 +3,10 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+if grep -q $'\r' "$root/scripts/check-breaking.sh" "$root/scripts/check-breaking-test.sh"; then
+    echo "Compatibility-check shell scripts must use LF line endings." >&2
+    exit 1
+fi
 fixture="$(mktemp -d)"
 trap 'rm -rf -- "$fixture"' EXIT
 mkdir -p "$fixture/baseline" "$fixture/current/scripts"
