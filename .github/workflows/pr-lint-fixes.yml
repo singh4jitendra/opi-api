@@ -1,0 +1,75 @@
+name: Existing PR lint fix validation
+
+on:
+  push:
+    branches: [ ci/validate-pr-lint-fixes ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    name: SPDK ${{ matrix.pr }} lint and tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 896
+            ref: 3a1c9e769469879014fc9350ae76c1a1c036f252
+          - pr: 897
+            ref: efa7534886215c851b723334d6d879c6990b9590
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: singh4jitendra/opi-spdk-bridge
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.9'
+          cache-dependency-path: go.sum
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+      - run: go test ./pkg/backend ./pkg/frontend ./pkg/middleend ./pkg/utils
+
+  shell:
+    name: API ${{ matrix.pr }} shell regression tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 497
+            ref: f5a8461d50b78b12caa4312246a0286e5d07f1ed
+            test: scripts/api-lint-test.sh
+          - pr: 498
+            ref: 489810f27c8d1764d84540d5719869f8038f04f8
+            test: scripts/check-breaking-test.sh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: singh4jitendra/opi-api
+          ref: ${{ matrix.ref }}
+          persist-credentials: false
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.50.0
+      - run: bash "${{ matrix.test }}"
+
+  provisioning:
+    name: API 509 artifact and LF regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: singh4jitendra/opi-api
+          ref: 49d09660732428d92eeacc9d084eb1491a480a78
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.9'
+          cache: false
+      - run: go test ./tests/provisioning_verification_test.go
